@@ -41,16 +41,41 @@ angular.module('berza.controllers', [])
   };
 })
 
-.controller('MyStocksCntrl', function($scope) {
-  $scope.playlists = [
-    { title: 'Reggae', id: 1 },
-    { title: 'Chill', id: 2 },
-    { title: 'Dubstep', id: 3 },
-    { title: 'Indie', id: 4 },
-    { title: 'Rap', id: 5 },
-    { title: 'Cowbell', id: 6 }
-  ];
-})
+.controller('MyStocksCntrl', ['$scope',
+  function($scope) {
+    $scope.myStocksArray = [
+      {ticker: "AAPL" },
+      {ticker: "GPRO" },
+      {ticker: "FB" },
+      {ticker: "NFLX" },
+      {ticker: "TSLA" },
+      {ticker: "BRK-A" },
+      {ticker: "MSFT" },
+      {ticker: "INTC" },
+      {ticker: "GE" }
+    ];
+}])
 
-.controller('StockCntrl', function($scope, $stateParams) {
-});
+.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices',
+  function($scope, $stateParams, $http,stockDataServices) {
+
+    $scope.ticker = $stateParams.stockTicker;
+    
+    $scope.$on("$ionicView.afterEnter",function(){
+      getPriceData();
+      getDetailsData();
+    })
+    
+    function getPriceData(){
+      var promise = stockDataServices.getPriceData($scope.ticker);
+      promise.then(function(data){
+        console.log(data);
+      });
+    }
+    function getDetailsData(){
+      var promise = stockDataServices.getDetailsData($scope.ticker);
+      promise.then(function(data){
+        console.log(data);
+      });
+    }
+}]);
