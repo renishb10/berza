@@ -1,5 +1,7 @@
 angular.module('berza', [
-  'ionic', 
+  'ionic',
+  'nvd3',
+  'nvChart',
   'berza.controllers',
   'berza.services',
   'berza.filters',

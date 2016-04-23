@@ -56,26 +56,37 @@ angular.module('berza.controllers', [])
     ];
 }])
 
-.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices',
-  function($scope, $stateParams, $http,stockDataServices) {
+.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', 'dateServices',
+  function($scope, $stateParams, $http,stockDataServices,dateServices) {
 
     $scope.ticker = $stateParams.stockTicker;
+    $scope.chartView = 1;
+    
+    console.log(dateServices.currentDate());
+    console.log(dateServices.oneYearAgoDate());
     
     $scope.$on("$ionicView.afterEnter",function(){
       getPriceData();
       getDetailsData();
     })
     
+    $scope.chartViewFunc = function(value){
+      console.log(value);
+      $scope.chartView = value;
+    }
+    
     function getPriceData(){
       var promise = stockDataServices.getPriceData($scope.ticker);
       promise.then(function(data){
         console.log(data);
+        $scope.stockPriceData = data;
       });
     }
     function getDetailsData(){
       var promise = stockDataServices.getDetailsData($scope.ticker);
       promise.then(function(data){
         console.log(data);
+        $scope.stockDetailsData = data;
       });
     }
 }]);
