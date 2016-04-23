@@ -3,7 +3,6 @@ angular.module('berza.services',[])
 .factory("EncodeURIServices",function(){
   return {
       encode: function(string){
-          console.log(string);
           return encodeURIComponent(string).replace(/\"/g, "%22").replace(/\"/g, "%20").replace(/[!'()]/g,escape);
       }
   }  
@@ -35,7 +34,6 @@ angular.module('berza.services',[])
         var deferred = $q.defer(),
         query = 'select * from yahoo.finance.quotes where symbol in ("' + ticker + '")';
         url = 'http://query.yahooapis.com/v1/public/yql?format=json&q=' + EncodeURIServices.encode(query) + '&env=store://datatables.org/alltableswithkeys';
-        console.log(url);
         
         $http.get(url)
             .success(function(json){
@@ -70,4 +68,58 @@ angular.module('berza.services',[])
         getPriceData : getPriceData,
         getDetailsData : getDetailsData
     }
- });
+ })
+ 
+ .factory("chartDataServices", function($q,$http,EncodeURIServices){
+    var getHistoricalData = function(ticker, fromDate, todayDate){
+        //select * from yahoo.finance.historicaldata where symbol = "YHOO" and startDate = "2009-09-11" and endDate = "2010-03-10"
+        var deferred = $q.defer(),
+        query = 'select * from yahoo.finance.historicaldata where symbol = "' + ticker + '" and startDate = "' + fromDate + '" and endDate = "' + todayDate + '"';
+        console.log(query);
+        url = 'http://query.yahooapis.com/v1/public/yql?format=json&q=' + EncodeURIServices.encode(query) + '&env=store://datatables.org/alltableswithkeys';
+        
+        $http.get(url)
+            .success(function(json){
+                var jsonData = json.query.results.quote;
+                
+                var priceData = [],
+                volumeData = [];
+                
+                jsonData.forEach(function(dayDataObject){
+                   var dateToMillis = dayDataObject.Date,
+                   date = Date.parse(dateToMillis),
+                   price = parseFloat(Math.round(dayDataObject.Close * 100) / 100).toFixed(3),
+                   volume = dayDataObject.Volume,
+                   
+                   volumeDatum = '[' + date + ',' + volume + ']',
+                   priceDatum = '[' + date + ',' + price + ']';
+                   
+                   volumeData.unshift(volumeDatum);
+                   priceData.unshift(priceDatum);
+                });
+                
+                var formattedChartData = 
+                    '[{' +
+                        '"key":' + '"volume",' +
+                        '"bar":' + 'true,' +
+                        '"values":' + '[' + volumeData + ']' +
+                      '},' +
+                      '{' +
+                        '"key":' + '"' + ticker + '",' +
+                        '"values":' + '[' + priceData + ']' +
+                      '}]';
+                
+                deferred.resolve(formattedChartData);
+            })
+            .error(function(error){
+                console.log("Chart data error: " + error);
+                deferred.reject();
+            });
+            
+            return deferred.promise;
+    }
+    
+    return {
+        getHistoricalData : getHistoricalData
+    }
+});
