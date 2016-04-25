@@ -1,5 +1,6 @@
 angular.module('berza', [
   'ionic',
+  'angular-cache',
   'nvd3',
   'nvChart',
   'berza.controllers',
