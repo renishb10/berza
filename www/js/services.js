@@ -27,6 +27,23 @@ angular.module('berza.services',[])
     }
 })
 
+.factory("chartDataCacheService", function(CacheFactory){
+    var chartDataCache;
+    
+    if(!CacheFactory.get('chartDataCache')){
+        chartDataCache = CacheFactory('chartDataCache', {
+            maxAge: 60 * 60 * 8 * 1000,
+            deleteOnExpire: 'aggressive',
+            storageMode: 'localStorage'
+        });
+    }
+    else{
+        chartDataCache = CacheFactory.get('chartDataCache');
+    }
+    
+    return chartDataCache;
+})
+
 .factory("stockDataServices", function($q,$http,EncodeURIServices){
     var getDetailsData = function(ticker){
         
@@ -70,15 +87,23 @@ angular.module('berza.services',[])
     }
  })
  
- .factory("chartDataServices", function($q,$http,EncodeURIServices){
+ .factory("chartDataServices", function($q,$http,EncodeURIServices,chartDataCacheService){
     var getHistoricalData = function(ticker, fromDate, todayDate){
         //select * from yahoo.finance.historicaldata where symbol = "YHOO" and startDate = "2009-09-11" and endDate = "2010-03-10"
         var deferred = $q.defer(),
+        
+        cacheKey = ticker,
+        chartDataCache = chartDataCacheService.get(cacheKey),
+        
         query = 'select * from yahoo.finance.historicaldata where symbol = "' + ticker + '" and startDate = "' + fromDate + '" and endDate = "' + todayDate + '"';
         console.log(query);
         url = 'http://query.yahooapis.com/v1/public/yql?format=json&q=' + EncodeURIServices.encode(query) + '&env=store://datatables.org/alltableswithkeys';
         
-        $http.get(url)
+        if(chartDataCache){
+            deferred.resolve(chartDataCache);
+        }
+        else{
+            $http.get(url)
             .success(function(json){
                 var jsonData = json.query.results.quote;
                 
@@ -110,13 +135,14 @@ angular.module('berza.services',[])
                       '}]';
                 
                 deferred.resolve(formattedChartData);
+                chartDataCacheService.put(cacheKey, formattedChartData);
             })
             .error(function(error){
                 console.log("Chart data error: " + error);
                 deferred.reject();
             });
-            
-            return deferred.promise;
+        }
+        return deferred.promise;
     }
     
     return {
