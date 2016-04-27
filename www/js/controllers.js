@@ -56,24 +56,93 @@ angular.module('berza.controllers', [])
     ];
 }])
 
-.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$window', 'dateServices', 'chartDataServices',
-  function($scope, $stateParams, $http,stockDataServices, $window, dateServices, chartDataServices) {
+.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$window', 'dateServices', 'chartDataServices', '$ionicPopup', 'notesService',
+  function($scope, $stateParams, $http,stockDataServices, $window, dateServices, chartDataServices, $ionicPopup, notesService) {
 
     $scope.ticker = $stateParams.stockTicker;
     $scope.chartView = 4;
     $scope.oneYearAgoDate = dateServices.oneYearAgoDate();
     $scope.currentDate = dateServices.currentDate();
+    $scope.stockNotes = [];
     
     $scope.$on("$ionicView.afterEnter",function(){
       getPriceData();
       getDetailsData();
       getChartData();
+      $scope.stockNotes = notesService.getNotes($scope.ticker);
     })
     
     $scope.chartViewFunc = function(value){
-      console.log(value);
       $scope.chartView = value;
     }
+    
+    $scope.addNote = function() {
+      $scope.note = {title: 'Note', body: '', date: $scope.currentDate, ticker: $scope.ticker};
+
+      // An elaborate, custom popup
+      var note = $ionicPopup.show({
+        template: '<input type="text" ng-model="note.title" id="stock-note-title"><textarea type="text" ng-model="note.body" id="stock-note-body">',
+        title: 'New note for ' + $scope.ticker,
+        scope: $scope,
+        buttons: [
+          { text: 'Cancel',
+            onTap: function(e){
+              return;
+            }
+          },
+          {
+            text: '<b>Save</b>',
+            type: 'button-balanced',
+            onTap: function(e) {
+              notesService.addNotes($scope.ticker, $scope.note);
+            }
+          }
+        ]
+      });
+
+      note.then(function(res) {
+        $scope.stockNotes = notesService.getNotes($scope.ticker);
+      });
+    };
+    
+    $scope.openNote = function(index, title, body) {
+      $scope.note = {title: title, body: body, date: $scope.currentDate, ticker: $scope.ticker};
+
+      // An elaborate, custom popup
+      var note = $ionicPopup.show({
+        template: '<input type="text" ng-model="note.title" id="stock-note-title"><textarea type="text" ng-model="note.body" id="stock-note-body">',
+        title: $scope.note.title,
+        scope: $scope,
+        buttons: [
+          { 
+            text: 'Delete',
+            type: 'button-assertive button-small',
+            onTap: function(e){
+              notesService.deleteNote($scope.ticker, index);
+            }
+          },
+          {
+            text: 'Cancel',
+            type: 'button-small',
+            onTap: function(e) {
+              return;
+            }
+          },
+          {
+            text: 'Save',
+            type: 'button-balanced button-small',
+            onTap: function(e) {
+              notesService.deleteNote($scope.ticker, index);
+              notesService.addNotes($scope.ticker, $scope.note);
+            }
+          }
+        ]
+      });
+
+      note.then(function(res) {
+        $scope.stockNotes = notesService.getNotes($scope.ticker);
+      });
+    };
     
     function getPriceData(){
       var promise = stockDataServices.getPriceData($scope.ticker);
