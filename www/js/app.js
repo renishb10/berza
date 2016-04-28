@@ -3,6 +3,7 @@ angular.module('berza', [
   'angular-cache',
   'nvd3',
   'nvChart',
+  'cb.x2js',
   'berza.controllers',
   'berza.services',
   'berza.filters',

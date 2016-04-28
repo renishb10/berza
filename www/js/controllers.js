@@ -56,8 +56,8 @@ angular.module('berza.controllers', [])
     ];
 }])
 
-.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$window', 'dateServices', 'chartDataServices', '$ionicPopup', 'notesService',
-  function($scope, $stateParams, $http,stockDataServices, $window, dateServices, chartDataServices, $ionicPopup, notesService) {
+.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$window', 'dateServices', 'chartDataServices', '$ionicPopup', 'notesService', 'newsService',
+  function($scope, $stateParams, $http,stockDataServices, $window, dateServices, chartDataServices, $ionicPopup, notesService, newsService) {
 
     $scope.ticker = $stateParams.stockTicker;
     $scope.chartView = 4;
@@ -69,6 +69,7 @@ angular.module('berza.controllers', [])
       getPriceData();
       getDetailsData();
       getChartData();
+      getNews();
       $scope.stockNotes = notesService.getNotes($scope.ticker);
     })
     
@@ -104,6 +105,10 @@ angular.module('berza.controllers', [])
         $scope.stockNotes = notesService.getNotes($scope.ticker);
       });
     };
+    
+    $scope.openWindow = function(link){
+      console.log(link);
+    }
     
     $scope.openNote = function(index, title, body) {
       $scope.note = {title: title, body: body, date: $scope.currentDate, ticker: $scope.ticker};
@@ -175,6 +180,15 @@ angular.module('berza.controllers', [])
             return series;
         });
       })
+    }
+    
+    function getNews(){
+      $scope.newsStories = [];
+      var promise = newsService.getNews($scope.ticker);
+      
+      promise.then(function(data){
+        $scope.newsStories = data;
+      });
     }
 
 	var xTickFormat = function(d) {
