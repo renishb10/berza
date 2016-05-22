@@ -227,3 +227,83 @@ svg text {
 .no-margin{
     margin: 0 !important;
 }
+
+/* Search modal */
+#search {
+    background-color: rgba(20, 20, 20, .975);
+}
+
+#search .search-input {
+    background-color: rgba(255,255,255,.25);
+}
+
+#search input{
+    color : #fff;
+}
+
+.margin-auto,
+.margin-auto svg {
+    margin: auto !important;
+}
+
+.text-align-center{
+    text-align: center !important;
+}
+
+.text-uppercase {
+    text-transform: uppercase !important;
+}
+
+.text-capitalize {
+    text-transform: capitalize !important;
+}
+
+/* My Stock display style */
+.color-red{
+    color: #ef473a !important;
+}
+
+.background-red{
+    background-color: #ef473a !important;
+}
+
+.background-green{
+    background-color: #33cd5f !important;
+}
+
+#my-stocks .item-content{
+    padding: 5px 0px 5px 5px;
+}
+
+#my-stocks h3{
+    font-size: 4.75vmin;
+}
+
+#my-stocks h6{
+    font-size: 3vmin;
+    font-weight: 300;
+}
+
+#my-stocks .stock-price-time{
+    padding-right: 10px;
+    text-align: right;
+}
+
+#my-stocks .stock-price-time h3{
+    font-weight: normal;
+}
+
+#my-stocks .stock-change{
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
+    margin-right: -10px;
+}
+
+#my-stocks .stock-change h3,
+#my-stocks .stock-change h6{
+    color: #fff;
+}
+
+#my-stocks .inset-shadow{
+    -webkit-box-shadow: inset 0px 0px 15px rgba(0, 0, 0, .15);
+}

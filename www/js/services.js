@@ -32,7 +32,7 @@ angular.module('berza.services',[])
     
     if(!CacheFactory.get('chartDataCache')){
         chartDataCache = CacheFactory('chartDataCache', {
-            maxAge: 60 * 60 * 8 * 1000,
+            maxAge: 60 * 1000,
             deleteOnExpire: 'aggressive',
             storageMode: 'localStorage'
         });
@@ -44,35 +44,65 @@ angular.module('berza.services',[])
     return chartDataCache;
 })
 
-.factory("stockDataServices", function($q,$http,EncodeURIServices){
+.factory("stockPriceCacheService", function(CacheFactory){
+    var stockPriceCache;
+    
+    if(!CacheFactory.get('stockPriceCache')){
+        stockPriceCache = CacheFactory('stockPriceCache', {
+            maxAge: 5 * 1000,
+            deleteOnExpire: 'aggressive',
+            storageMode: 'localStorage'
+        });
+    }
+    else{
+        stockPriceCache = CacheFactory.get('stockPriceCache');
+    }
+    
+    return stockPriceCache;
+})
+
+.factory("stockDataServices", function($q,$http,EncodeURIServices, chartDataCacheService, stockPriceCacheService){
     var getDetailsData = function(ticker){
         
         //http://query.yahooapis.com/v1/public/yql?format=json&q=select%20*%20from%20yahoo.finance.quotes%20where%20symbol%20in%20(%22AAPL%22)&env=store://datatables.org/alltableswithkeys
         var deferred = $q.defer(),
+        
+        cacheKey = ticker,
+        stockDetailsCache = chartDataCacheService.get(cacheKey);
+        
         query = 'select * from yahoo.finance.quotes where symbol in ("' + ticker + '")';
         url = 'http://query.yahooapis.com/v1/public/yql?format=json&q=' + EncodeURIServices.encode(query) + '&env=store://datatables.org/alltableswithkeys';
         
-        $http.get(url)
-            .success(function(json){
-                var jsonData = json.query.results.quote;
-                deferred.resolve(jsonData);
-            })
-            .error(function(error){
-                console.log("Error in fetching Detail data - " + error);
-                deferred.reject();
-            });
-            return deferred.promise;
-    }
+        if(stockDetailsCache){
+            deferred.resolve(stockDetailsCache);
+        }
+        else{
+            $http.get(url)
+                .success(function(json){
+                    var jsonData = json.query.results.quote;
+                    deferred.resolve(jsonData);
+                })
+                .error(function(error){
+                    console.log("Error in fetching Detail data - " + error);
+                    deferred.reject();
+                });
+            }
+         return deferred.promise;
+        }
     
     var getPriceData = function(ticker){
         
         var deferred = $q.defer(),
+        
+        cacheKey = ticker,
+        
         url = "http://finance.yahoo.com/webservice/v1/symbols/" + ticker + "/quote?format=json&view=detail";
         
         $http.get(url)
             .success(function(json){
                 var jsonData = json.list.resources[0].resource.fields;
                 deferred.resolve(jsonData);
+                stockPriceCacheService.put(cacheKey,  jsonData);
             })
             .error(function(error){
                 console.log("Error in fetching Price data - " + error);
@@ -213,6 +243,151 @@ angular.module('berza.services',[])
                     deferred.reject();
                     console.log("News error: " + error);
                 });
+            return deferred.promise;
+        }
+    }
+})
+
+.factory('fillMyStocksCacheService', function(CacheFactory){
+    var myStockCache;
+    
+    if(!CacheFactory.get('myStockCache')){
+        myStockCache = CacheFactory('myStockCache', {
+            storageMode: 'localStorage'
+        });
+    }
+    else{
+        myStockCache = CacheFactory.get('myStockCache');
+    }
+    
+    var fillMyStocksCache = function(){
+        var myStocksArray = [
+            {ticker: "AAPL" },
+            {ticker: "GPRO" },
+            {ticker: "FB" },
+            {ticker: "NFLX" },
+            {ticker: "TSLA" },
+            {ticker: "BRK-A" },
+            {ticker: "MSFT" },
+            {ticker: "INTC" },
+            {ticker: "GE" }
+        ];
+        
+        myStockCache.put('myStocks', myStocksArray);
+    };
+    
+    return{
+        fillMyStocksCache: fillMyStocksCache
+    }
+})
+
+.factory('myStocksCacheService', function(CacheFactory){
+    var myStockCache = CacheFactory.get('myStockCache');
+    
+    return myStockCache;
+})
+
+.factory('myStocksArrayService', function(fillMyStocksCacheService, myStocksCacheService){
+    if(!myStocksCacheService.info('myStocks')){
+        fillMyStocksCacheService.fillMyStocksCache();
+    }
+    
+    var myStocks = myStocksCacheService.get('myStocks');
+    
+    return myStocks;
+})
+
+.factory('followStockService', function(myStocksArrayService, myStocksCacheService){
+    return {
+        follow: function(ticker){
+            var stockToAdd = {"ticker": ticker};
+            myStocksArrayService.push(stockToAdd);
+            myStocksCacheService.put('myStocks', myStocksArrayService);
+        },
+        
+        unfollow: function(ticker){
+            for(var i = 0; i < myStocksArrayService.length; i++){
+                if(myStocksArrayService[i].ticker == ticker){
+                    myStocksArrayService.splice(i, 1);
+                    myStocksCacheService.remove('myStocks');
+                    myStocksCacheService.put('myStocks', myStocksArrayService);
+                    
+                    break;
+                }
+            }
+        },
+        
+        checkFollowing: function(ticker){
+            for(var i = 0; i < myStocksArrayService.length; i++){
+                if(myStocksArrayService[i].ticker == ticker){
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+})
+
+.service('modalService', function($ionicModal){
+    
+    this.openModal = function(id){
+        
+        var _this = this;
+        
+        if(id == 1){
+            $ionicModal.fromTemplateUrl('templates/search.html', {
+                scope: null,
+                controller: 'SearchCntrl'
+            }).then(function(modal) {
+                _this.modal = modal;
+                _this.modal.show();
+            });
+        }
+        else if(id == 2){
+            $ionicModal.fromTemplateUrl('templates/login.html', {
+                scope: $scope
+            }).then(function(modal) {
+                $scope.modal = modal;
+            });
+        }
+        else if(id == 3){
+            $ionicModal.fromTemplateUrl('templates/login.html', {
+                scope: $scope
+            }).then(function(modal) {
+                $scope.modal = modal;
+            });
+        }
+    };
+    
+    this.closeModal = function(){
+        var _this = this;
+        if(!_this.modal) return;
+        _this.modal.hide();
+        _this.modal.remove();
+    };
+})
+
+.factory('searchService', function($q, $http){
+    return {
+        search: function(query){
+            var deferred = $q.defer(),
+            
+            url = 'https://s.yimg.com/aq/autoc?query=' + query + '&region=CA&lang=en-CA'; //&callback=YAHOO.util.ScriptNodeDataSource.callbacks';
+            
+            var callback = function(data){
+                console.log(data);
+                var jsonData = data.ResultSet.Result;
+                deferred.resolve(jsonData);
+            };
+            
+            $http.get(url)
+                .success(function(data){
+                    callback(data);
+                })
+                .error(function(error){
+                    console.log(error);
+                    deferred.reject();
+                })
             return deferred.promise;
         }
     }
