@@ -4,6 +4,7 @@ angular.module('berza', [
   'nvd3',
   'nvChart',
   'cb.x2js',
+  'firebase',
   'berza.controllers',
   'berza.services',
   'berza.filters',
