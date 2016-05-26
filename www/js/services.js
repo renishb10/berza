@@ -7,8 +7,14 @@ angular.module('berza.services',[])
     return firebaseRef;    
 })
 
-.factory('userService', function($rootScope, firebaseRef, modalService){
-    var login = function(user){
+.factory('firebaseUserRef', function(firebaseRef){
+    var userRef = firebaseRef.child('users');
+    
+    return userRef;
+})
+
+.factory('userService', function($rootScope, firebaseRef, $timeout, firebaseUserRef, notesCacheService, myStocksArrayService, modalService, $window, myStocksCacheService){
+    var login = function(user, signup){
         firebaseRef.authWithPassword({
             email: user.email,
             password: user.password
@@ -18,7 +24,21 @@ angular.module('berza.services',[])
             }
             else{
                 $rootScope.currentUser = user;
-                modalService.closeModal();
+                console.log("Login:", error);
+                if(signup){
+                 modalService.closeModal();   
+                }
+                else{
+                    myStocksCacheService.removeAll();
+                    notesCacheService.removeAll();
+                    
+                    loadUserData(authData);
+                    
+                    modalService.closeModal();
+                    $timeout(function(){
+                        $window.location.reload(true);
+                    }, 400);
+                }
                 console.log("Authenticated successfully with the payload:", authData);
             }
         });
@@ -33,29 +53,85 @@ angular.module('berza.services',[])
                 console.log("Error creating user:", error);
             }
             else{
-                login(user);
-                console.log("Successfully created user account with uid:", userData.uid);
+                login(user, true);
+                firebaseRef.child('emails').push(user.email);
+                firebaseUserRef.child(userData.uid).child('stocks').set(myStocksArrayService);
+                
+                var stocksWithNotes = notesCacheService.keys();
+                stocksWithNotes.forEach(function(stockWithNotes){
+                    var notes = notesCacheService.get(stocksWithNotes);
+                    
+                    notes.forEach(function(note){
+                        firebaseUserRef.child(userData.uid).child('notes').child(note.ticker).push(note);
+                    })
+                })
             }
         });
     };
     
-    var getAuth = function(){
+    var loadUserData = function(authData){
+        firebaseUserRef.child(authData.uid).child('stocks').once('value', function(snapshot){
+            console.log("Success");
+            var stocksFromDatabase = [];
+            snapshot.val().forEach(function(stock){
+                var stockToAdd = {ticker: stock.ticker};
+                stocksFromDatabase.push(stockToAdd);
+            });
+            myStocksCacheService.put('myStocks', stocksFromDatabase);
+        },
+        function(error){
+            console.log("Firebase error : in loading user Stock data :", error);
+        });
+        
+        //Reading Notes
+        firebaseUserRef.child(authData.uid).child('notes').once('value', function(snapshot){
+            snapshot.forEach(function(stockWithNotes){
+                var  notesFromDatabase = [];
+                stockWithNotes.forEach(function(note){
+                    notesFromDatabase.push(note.val());
+                    var cacheKey = note.child('ticker').val();
+                    notesCacheService.put(cacheKey, notesFromDatabase);
+                })
+            })
+        }, function(error){
+            console.log("Firebase error : in loading user Notes data :", error);
+        })
+    }
+    
+    var updateStocks = function(stocks){
+        firebaseUserRef.child(getUser().uid).child('stocks').set(stocks);
+    }
+    
+    var updateNotes = function(ticker, notes){
+        firebaseUserRef.child(getUser().uid).child('notes').child(ticker).remove();
+        notes.forEach(function(note){
+            firebaseUserRef.child(getUser().uid).child('notes').child(note.ticker).push(note);
+        })
+    }
+    
+    var getUser = function(){
         return firebaseRef.getAuth();
     }
     
-    if(getAuth()){
+    if(getUser()){
         $rootScope.currentUser = getUser();
     }
     
     var logout = function(){
         firebaseRef.unauth();
+        notesCacheService.removeAll();
+        myStocksCacheService.removeAll();
+        $window.location.reload(true);
         $rootScope.currentUser = '';
     }
     
     return{
         login: login,
         signup: signup,
-        logout: logout
+        logout: logout,
+        updateStocks: updateStocks,
+        updateNotes: updateNotes,
+        getUser: getUser
     }
 })
 
@@ -254,7 +330,7 @@ angular.module('berza.services',[])
     return notesCache;
 })
 
-.factory('notesService', function(notesCacheService){
+.factory('notesService', function(notesCacheService, userService){
     return {
         getNotes : function(ticker){
             return notesCacheService.get(ticker);
@@ -269,6 +345,11 @@ angular.module('berza.services',[])
             else{
                 stockNotes.push(note);
             }
+            
+            if(userService.getUser()){
+                var notes = notesCacheService.get(ticker);
+                userService.updateNotes(ticker, stockNotes);
+            }
             notesCacheService.put(ticker, stockNotes);
         },
         deleteNote : function(ticker, index){
@@ -277,6 +358,11 @@ angular.module('berza.services',[])
             stockNotes = notesCacheService.get(ticker);
             stockNotes.splice(index, 1);
             notesCacheService.put(ticker, stockNotes);
+            
+            if(userService.getUser()){
+                var notes = notesCacheService.get(ticker);
+                userService.updateNotes(ticker, stockNotes);
+            }
         }
     };
 })
@@ -356,12 +442,16 @@ angular.module('berza.services',[])
     return myStocks;
 })
 
-.factory('followStockService', function(myStocksArrayService, myStocksCacheService){
+.factory('followStockService', function(myStocksArrayService, myStocksCacheService, userService){
     return {
         follow: function(ticker){
             var stockToAdd = {"ticker": ticker};
             myStocksArrayService.push(stockToAdd);
             myStocksCacheService.put('myStocks', myStocksArrayService);
+            
+            if(userService.getUser()){
+                userService.updateStocks(myStocksArrayService);
+            }
         },
         
         unfollow: function(ticker){
@@ -370,6 +460,10 @@ angular.module('berza.services',[])
                     myStocksArrayService.splice(i, 1);
                     myStocksCacheService.remove('myStocks');
                     myStocksCacheService.put('myStocks', myStocksArrayService);
+                    
+                    if(userService.getUser()){
+                        userService.updateStocks(myStocksArrayService);
+                    }
                     
                     break;
                 }
