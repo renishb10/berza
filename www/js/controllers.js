@@ -37,8 +37,8 @@ angular.module('berza.controllers', [])
     console.log(myStocksArrayService);
 }])
 
-.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$window', 'dateServices', 'chartDataServices', '$ionicPopup', 'notesService', 'newsService', 'followStockService',
-  function($scope, $stateParams, $http,stockDataServices, $window, dateServices, chartDataServices, $ionicPopup, notesService, newsService, followStockService) {
+.controller('StockCntrl', ['$scope','$stateParams','$http','stockDataServices', '$cordovaInAppBrowser', '$window', 'dateServices', 'chartDataServices', '$ionicPopup', 'notesService', 'newsService', 'followStockService',
+  function($scope, $stateParams, $http, stockDataServices, $cordovaInAppBrowser ,$window, dateServices, chartDataServices, $ionicPopup, notesService, newsService, followStockService) {
 
     $scope.ticker = $stateParams.stockTicker;
     $scope.chartView = 4;
@@ -100,7 +100,14 @@ angular.module('berza.controllers', [])
     };
     
     $scope.openWindow = function(link){
-      console.log(link);
+      var inAppBrowserOption = {
+        location: 'yes',
+        clearCache: 'yes',
+        toolbar: 'yes'
+      };
+      
+      $cordovaInAppBrowser.open(link, '_blank', inAppBrowserOption);
+      
     }
     
     $scope.openNote = function(index, title, body) {
